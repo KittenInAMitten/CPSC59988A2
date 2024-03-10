@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "uuid": "a77260fd-eb19-42ae-978e-9284461312d0",
+    "name": "KittenInAMitten",
+    "level": 4,
+    "bypassesPlayerLimit": false
+  }
+]
