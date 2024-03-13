@@ -94,7 +94,7 @@ mc = Minecraft.create(address="localhost", port=4711)
 # Tick rate set so console just has to report based on ticks per sec
 tickAccumulator = 0.0
 lastTime = time.time()
-TICKS_PER_SEC = 1.5
+TICKS_PER_SEC = 1.0/20.0
 
 # This first part, simply send an initial position to the arduino for calibration.
 x, y, z = mc.player.getPos()
@@ -109,6 +109,8 @@ while True:
         print(arduinoRead)
     if arduinoRead == "done":
         break
+
+print("Initialization finished...")
 
 # This while loop will act as an updater and sends new position data. This is done as many times per second according to TICKS_PER_SEC
 while True:

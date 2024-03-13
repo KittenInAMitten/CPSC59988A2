@@ -20,6 +20,7 @@ AccelStepper* steppers[stepperAmount] = {
 
 const int endX = A0;
 const int endY = A1;
+const int calibrationBtn = 2;
 
 const long minX = 14;
 const long minZ = -70;
@@ -35,6 +36,8 @@ bool initPosition = false;
 
 bool xStop = false;
 bool yStop = false;
+
+volatile bool forceCalibration = false;
 
 long constrainX(long x) {
   return constrain(map(x, minX, maxX, 0, MAX_TRAVEL), MAX_TRAVEL, 0);
@@ -58,6 +61,12 @@ boolean newData = false;
 
 //===============
 
+void calibrationButtonFunc() {
+  if(!forceCalibration) {
+    forceCalibration = true;
+  }
+}
+
 void setup() {
 
   Serial.begin(115200);
@@ -67,22 +76,28 @@ void setup() {
   pinMode(12, OUTPUT);
   pinMode(endX, INPUT);
   pinMode(endY, INPUT);
+  pinMode(calibrationBtn, INPUT);
 
   digitalWrite(13, HIGH);
   digitalWrite(12, HIGH);
 
-  xStepper.setMaxSpeed(800);
-  xStepper.setAcceleration(175);
+  xStepper.setMaxSpeed(1000);
+  xStepper.setAcceleration(300);
 
-  yStepper.setMaxSpeed(800);
-  yStepper.setAcceleration(175);
+  yStepper.setMaxSpeed(1000);
+  yStepper.setAcceleration(300);
+
+  xStepper.moveTo(20000);
+  yStepper.moveTo(20000);
+
+  attachInterrupt(digitalPinToInterrupt(calibrationBtn), calibrationButtonFunc, RISING);
 
   // stepper1.moveTo(-11000);
   // stepper2.moveTo(-11000);
 
   calibrating = true;
   movingToNewStart = false;
-  settingUp = false;;
+  settingUp = false;
   initPosition = false;
 }
 
@@ -92,6 +107,7 @@ void calibration() {
     xStepper.setCurrentPosition(0);
     xStepper.moveTo(0);
     xStop = true;
+    return;
   }
 
   if(!yStop && analogRead(endY) > 100) {
@@ -99,6 +115,7 @@ void calibration() {
     yStepper.setCurrentPosition(0);
     yStepper.moveTo(0);
     yStop = true;
+    return;
   }
 
   if(!xStepper.run() && !yStepper.run()) {
@@ -113,6 +130,7 @@ void calibration() {
       calibrating = false;
       xStop = false;
       yStop = false;
+      settingUp = true;
       Serial.println("<Arduino is ready>");
     }
   }
@@ -134,6 +152,7 @@ void waitForInitialPosition() {
 
     replyToPython(reply);
 
+    calibrating = false;
     initPosition = true;
     settingUp = false;
     newData = false;
@@ -144,8 +163,9 @@ void moveToInitialPosition() {
   for(int i = 0; i < stepperAmount; i++) {
     steppers[i]->run();
   }
-  if(xStepper.distanceToGo() == 0 && yStepper.distanceToGo() == 0) {
+  if(!xStepper.run() && !yStepper.run() ) {
     initPosition = false;
+    forceCalibration = false;
     replyToPython("done");
   }
 }
@@ -158,7 +178,7 @@ void updatePosition() {
     long z = constrainZ(read.substring(read.indexOf(",") + 1, read.length()).toInt());
 
     if(x != xStepper.targetPosition()) {
-      yStepper.moveTo(x);
+      xStepper.moveTo(x);
     }
 
     if(z != yStepper.targetPosition()) {
@@ -170,40 +190,51 @@ void updatePosition() {
 
 void loop() {
 
-  if(!xStop && analogRead(endX) > 100) {
-    xStepper.stop();
-    xStepper.setCurrentPosition(0);
-    xStepper.moveTo(0);
-    xStop = true;
-    calibrating = true;
-  }
-
-  if(!yStop && analogRead(endY) > 100) {
-    yStepper.stop();
-    yStepper.setCurrentPosition(0);
-    yStepper.moveTo(0);
-    yStop = true;
-    calibrating = true;
-  }
-
   if(calibrating) {
-    xStepper.moveTo(20000);
-    yStepper.moveTo(20000);
     calibration();
   } 
-  else if(settingUp) {
+  else if(settingUp && !initPosition) {
     waitForInitialPosition();
   }
   else if(initPosition) {
     moveToInitialPosition();
   }
   else {
+    
+    if(forceCalibration) {
+      xStepper.moveTo(20000);
+      yStepper.moveTo(20000);
+      calibrating = true;
+      return;
+    }
+
     updatePosition();
+
+    if(!xStop && analogRead(endX) > 100) {
+      xStepper.stop();
+      xStepper.setCurrentPosition(0);
+      xStepper.moveTo(0);
+      xStop = true;
+      calibrating = true;
+      yStepper.moveTo(20000);
+      return;
+    }
+
+    if(!yStop && analogRead(endY) > 100) {
+      yStepper.stop();
+      yStepper.setCurrentPosition(0);
+      yStepper.moveTo(0);
+      yStop = true;
+      calibrating = true;
+      xStepper.moveTo(20000);
+      return;
+    }
+
+    for(int i = 0; i < stepperAmount; i++) {
+      steppers[i]->run();
+    }
   }
 
-  for(int i = 0; i < stepperAmount; i++) {
-    steppers[i]->run();
-  }
 }
 
 // ============================================== START ===================================================
