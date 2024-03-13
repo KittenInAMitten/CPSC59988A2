@@ -22,10 +22,11 @@ const int endX = A0;
 const int endY = A1;
 const int calibrationBtn = 2;
 
-const long minX = 14;
-const long minZ = -70;
-const long maxX = 119;
-const long maxZ = 20;
+const long minX = -116;
+const long minZ = -62;
+
+const long maxX = 208;
+const long maxZ = 262;
 
 const long MAX_TRAVEL = -9500;
 
