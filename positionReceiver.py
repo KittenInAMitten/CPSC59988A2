@@ -94,7 +94,7 @@ mc = Minecraft.create(address="localhost", port=4711)
 # Tick rate set so console just has to report based on ticks per sec
 tickAccumulator = 0.0
 lastTime = time.time()
-TICKS_PER_SEC = 0.75
+TICKS_PER_SEC = 1.5
 
 # This first part, simply send an initial position to the arduino for calibration.
 x, y, z = mc.player.getPos()
