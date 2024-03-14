@@ -1,3 +1,8 @@
+#
+#  CPSC 599.88 | A1: Finger Drums | Dr. Lora Oehlberg
+#  Winter 2024 | UCID: 30089672 | C.S.
+#
+
 from mcpi.minecraft import Minecraft
 from time import sleep
 import time 
