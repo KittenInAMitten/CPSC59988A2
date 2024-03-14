@@ -146,8 +146,9 @@ void waitForInitialPosition() {
     x = constrainX(read.substring(0, read.indexOf(",")).toInt());
     z = constrainZ(read.substring(read.indexOf(",") + 1, read.length()).toInt());
 
-    xStepper.moveTo(x);
-    yStepper.moveTo(z);
+    //Due to prototype having map the wrong way :)
+    xStepper.moveTo(z);
+    yStepper.moveTo(x);
 
     String reply = String("just got this yo: X = ") + x + String(" And Z = ") + z;
 
@@ -178,12 +179,13 @@ void updatePosition() {
     long x = constrainX(read.substring(0, read.indexOf(",")).toInt());
     long z = constrainZ(read.substring(read.indexOf(",") + 1, read.length()).toInt());
 
+    //Wrong rotation on real prototype, for demo only :)
     if(x != xStepper.targetPosition()) {
-      xStepper.moveTo(x);
+      xStepper.moveTo(z);
     }
 
     if(z != yStepper.targetPosition()) {
-      yStepper.moveTo(z);
+      yStepper.moveTo(x);
     }
   }
   newData = false;
