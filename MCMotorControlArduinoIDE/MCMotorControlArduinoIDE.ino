@@ -1,3 +1,7 @@
+/*
+  CPSC 599.88 | A2: Steve's Physical Map | Dr. Lora Oehlberg
+  Winter 2024 | UCID: 30089672 | C.S.
+*/
 #include <AccelStepper.h>
 #define step1 4
 #define step2 8
@@ -10,6 +14,7 @@ const int stepperAmount = 2;
 const int stepsPerRevolution = 200;  // change this to fit the number of steps per revolution
 // for your motor
 
+// Set steppers
 AccelStepper xStepper(AccelStepper::DRIVER, step1, dir1);
 AccelStepper yStepper(AccelStepper::DRIVER, step2, dir2);
 
@@ -18,28 +23,35 @@ AccelStepper* steppers[stepperAmount] = {
   &yStepper
 };
 
+// Pins
 const int endX = A0;
 const int endY = A1;
 const int calibrationBtn = 2;
 
+// Map coordinate limits
 const long minX = -116;
 const long minZ = -62;
 
 const long maxX = 208;
 const long maxZ = 262;
 
+// max motor travel
 const long MAX_TRAVEL = -9500;
 
+// State flags
 bool calibrating = true;
 bool movingToNewStart = false;
 bool settingUp = false;
 bool initPosition = false;
 
+// Endstop flags
 bool xStop = false;
 bool yStop = false;
 
+// Button volatile flag
 volatile bool forceCalibration = false;
 
+// These constrain functions just map minecraft position coordinates to number of steps/stepper position
 long constrainX(long x) {
   return constrain(map(x, minX, maxX, 0, MAX_TRAVEL), MAX_TRAVEL, 0);
 
@@ -79,18 +91,22 @@ void setup() {
   pinMode(endY, INPUT);
   pinMode(calibrationBtn, INPUT);
 
+  //Set MS1 to high to enable half stepping to avoid resonance or weird clunky noises
   digitalWrite(13, HIGH);
   digitalWrite(12, HIGH);
 
+  //Initially set the speeds
   xStepper.setMaxSpeed(1000);
   xStepper.setAcceleration(300);
 
   yStepper.setMaxSpeed(1000);
   yStepper.setAcceleration(300);
-
+  
+  //Move the motors to the start and hit the end stops for initial calibration
   xStepper.moveTo(20000);
   yStepper.moveTo(20000);
 
+  //Create interrupt for the buttons for forced calibration
   attachInterrupt(digitalPinToInterrupt(calibrationBtn), calibrationButtonFunc, RISING);
 
   // stepper1.moveTo(-11000);
@@ -102,7 +118,9 @@ void setup() {
   initPosition = false;
 }
 
+// Calibration function that will handle start calibration
 void calibration() {
+  // If X-axis end stop reached, stop X motor and set flag.
   if(!xStop && analogRead(endX) > 100) {
     xStepper.stop();
     xStepper.setCurrentPosition(0);
@@ -111,6 +129,7 @@ void calibration() {
     return;
   }
 
+  // If Y-axis end stop reached, stop Y motor and set flag.
   if(!yStop && analogRead(endY) > 100) {
     yStepper.stop();
     yStepper.setCurrentPosition(0);
@@ -119,12 +138,16 @@ void calibration() {
     return;
   }
 
+  // Once both motors have stopped
   if(!xStepper.run() && !yStepper.run()) {
+    // If the motors JUST stopped at the end stops, simply move them forward 200 steps to give some room.
     if(!movingToNewStart) {
       movingToNewStart = true;
       xStepper.moveTo(-200);
       yStepper.moveTo(-200);
-    } else {
+    } 
+    // Otherwise, set their new positions as 0 and send to Serial that Arduino is ready and done calibrating.
+    else {
       xStepper.setCurrentPosition(0);
       yStepper.setCurrentPosition(0);
       movingToNewStart = false;
@@ -137,8 +160,10 @@ void calibration() {
   }
 }
 
+// THis function will wait for initial positions sent by the python script to grab the position from minecraft
 void waitForInitialPosition() {
   recvWithStartEndMarkers();
+  // If new data is received, read it and set the new stepper target positions
   if(newData == true) {
     long x = minX;
     long z = minZ;
@@ -153,6 +178,7 @@ void waitForInitialPosition() {
 
     replyToPython(reply);
 
+    // Now go to initPosition state
     calibrating = false;
     initPosition = true;
     settingUp = false;
@@ -160,6 +186,7 @@ void waitForInitialPosition() {
   }
 }
 
+// This function simply moves the motors to the initial position
 void moveToInitialPosition() {
   for(int i = 0; i < stepperAmount; i++) {
     steppers[i]->run();
@@ -171,6 +198,7 @@ void moveToInitialPosition() {
   }
 }
 
+// The regular updating loop that will update the target positions and move the motors
 void updatePosition() {
   recvWithStartEndMarkers();
   if(newData == true) {
@@ -189,8 +217,10 @@ void updatePosition() {
   newData = false;
 }
 
+// Event loop
 void loop() {
 
+  // The different states in order: Calibration State > WaitForInitialPosition State > MoveToInitialPosition State > Regular Update State
   if(calibrating) {
     calibration();
   } 
@@ -202,6 +232,7 @@ void loop() {
   }
   else {
     
+    // Check if force calibration button was pressed and start calibration the same way as start up calibration
     if(forceCalibration) {
       xStepper.moveTo(20000);
       yStepper.moveTo(20000);
@@ -211,6 +242,7 @@ void loop() {
 
     updatePosition();
 
+    // Check if the endstops were reached.
     if(!xStop && analogRead(endX) > 100) {
       xStepper.stop();
       xStepper.setCurrentPosition(0);
@@ -231,6 +263,7 @@ void loop() {
       return;
     }
 
+    // Run the steppers
     for(int i = 0; i < stepperAmount; i++) {
       steppers[i]->run();
     }
